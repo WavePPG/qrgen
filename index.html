@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Generate QRCode and Check Payment Status</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        background-color: #f4f4f4;
+        margin: 0;
+      }
+
+      .AP {
+        width: 100px; /* Adjust the width as needed */
+        margin-bottom: 10px;
+      }
+      .content-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        max-width: 400px;
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+        z-index: 5;
+        position: relative;
+      }
+      .qr-container {
+        text-align: center;
+        background-color: white;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        margin-top: 20px;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      .qr-container img {
+        width: 300px;
+        height: 300px;
+        object-fit: contain;
+      }
+      .footer {
+        margin-top: 20px;
+        text-align: center;
+        font-size: 14px;
+        color: #333;
+      }
+      input,
+      button {
+        padding: 10px;
+        margin: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        width: calc(100% - 40px); /* Adjust for padding */
+      }
+      button {
+        background-color: #002f6c;
+        color: white;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      button:hover {
+        background-color: #001f4a;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="content-wrapper">
+      <img
+        class="AP"
+        src="https://upload.wikimedia.org/wikipedia/commons/c/c5/PromptPay-logo.png"
+        alt="Thai QR Payment Logo"
+      />
+      <h2>Thai QR Payment</h2>
+      <input type="text" id="amount" placeholder="amount" />
+      <button onclick="genQR()">Generate QR Code</button>
+      <div class="qr-container">
+        <img id="imgqr" src="" />
+      </div>
+      <div id="paymentStatus" class="footer"></div>
+    </div>
+
+    <script
+      src="https://code.jquery.com/jquery-3.6.0.js"
+      integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk="
+      crossorigin="anonymous"
+    ></script>
+    <script>
+      let checkPaymentInterval;
+      let transactionId; // Store transaction ID
+
+      function genQR() {
+        $.ajax({
+          method: "post",
+          url: "http://localhost:3000/generateQR",
+          data: JSON.stringify({
+            amount: parseFloat($("#amount").val()),
+          }),
+          contentType: "application/json",
+          success: function (response) {
+            console.log("good", response);
+            $("#imgqr").attr("src", response.Result);
+            transactionId = response.TransactionId; // Save transaction ID
+            startCheckingPayment();
+          },
+          error: function (err) {
+            console.log("bad", err);
+          },
+        });
+      }
+
+      function startCheckingPayment() {
+        clearInterval(checkPaymentInterval);
+        checkPaymentInterval = setInterval(checkPayment, 5000); // Check every 5 seconds
+      }
+
+      function checkPayment() {
+        $.ajax({
+          method: "post",
+          url: "http://localhost:3000/checkPaymentStatus",
+          data: JSON.stringify({
+            transactionId: transactionId, // Use the saved transaction ID
+          }),
+          contentType: "application/json",
+          success: function (response) {
+            console.log("good", response);
+            if (response.Result.status === "success") {
+              $("#paymentStatus").html("Payment successful");
+              clearInterval(checkPaymentInterval);
+            } else {
+              $("#paymentStatus").html("Payment pending");
+            }
+          },
+          error: function (err) {
+            console.log("bad", err);
+          },
+        });
+      }
+    </script>
+  </body>
+</html>
